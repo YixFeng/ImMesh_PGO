@@ -413,6 +413,7 @@ void Voxel_mapping::map_incremental_grow()
         transformLidar( state.rot_end, state.pos_end, m_feats_undistort, world_lidar_full );
          
         g_mutex_data_package_lock.lock();
+        // ANCHOR: meshing用data package
         g_rec_mesh_data_package_list.emplace_back( world_lidar_full, Eigen::Quaterniond( state.rot_end ), state.pos_end, g_frame_idx );
         g_mutex_data_package_lock.unlock();
         open_log_file();
@@ -442,3 +443,24 @@ void Voxel_mapping::map_incremental_grow()
 #endif
     }
 }
+
+#ifdef USE_LOOP_PGO
+void Voxel_mapping::initSAM() {
+    odometry_noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished());
+    gtsam::Vector robustNoiseVector(6);
+    robustNoiseVector << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1;
+    robust_loop_noise = gtsam::noiseModel::Robust::Create(
+        gtsam::noiseModel::mEstimator::Cauchy::Create(1), gtsam::noiseModel::Diagonal::Variances(robustNoiseVector));
+    gtsam::ISAM2Params parameters;
+    parameters.relinearizeSkip = 1;
+    parameters.relinearizeThreshold = 0.01;
+    isam = std::make_shared<gtsam::ISAM2>(parameters);
+}
+
+void Voxel_mapping::get_cloud_for_std_matcher(pcl::PointCloud<pcl::PointXYZI>::Ptr &in) {
+    PointCloudXYZI::Ptr temp_feats_world = PointCloudXYZI().makeShared();
+    frameBodyToWorld(m_feats_undistort, temp_feats_world);
+    pcl::copyPointCloud(*temp_feats_world, *in);
+    std_desc::voxelFilter(in, ds_size);
+}
+#endif

@@ -701,6 +701,40 @@ void Voxel_mapping::read_ros_parameters( ros::NodeHandle &nh )
     nh.param< int >( "meshing/maximum_thread_for_rec_mesh", m_meshing_maximum_thread_for_rec_mesh, 12 );
     nh.param< int >( "meshing/number_of_pts_append_to_map", m_meshing_number_of_pts_append_to_map, 10000 );
 
+#ifdef USE_LOOP_PGO
+    nh.param< double >("pgo/ds_size", ds_size, 0.25);
+    nh.param< int >("pgo/sub_frame_num", sub_frame_num, 10);
+
+    nh.param< double >("pgo/voxel_size", std_config.voxel_size, 1.0);
+    nh.param< int >("pgo/voxel_min_point", std_config.voxel_min_point, 10);
+    nh.param< double >("pgo/voxel_plane_thresh", std_config.voxel_plane_thresh, 0.01);
+    nh.param< double >("pgo/norm_merge_thresh", std_config.norm_merge_thresh, 0.1);
+
+    nh.param< double >("pgo/proj_2d_resolution", std_config.proj_2d_resolution, 0.25);
+    nh.param< double >("pgo/proj_min_dis", std_config.proj_min_dis, 0.0001);
+    nh.param< double >("pgo/proj_max_dis", std_config.proj_max_dis, 5.0);
+
+    nh.param< int >("pgo/nms_2d_range", std_config.nms_2d_range, 5);
+    nh.param< double >("pgo/nms_3d_range", std_config.nms_3d_range, 2.0);
+    nh.param< double >("pgo/corner_thresh", std_config.corner_thresh, 10.0);
+    nh.param< int >("pgo/max_corner_num", std_config.max_corner_num, 100);
+    nh.param< double >("pgo/min_side_len", std_config.min_side_len, 2.0);
+    nh.param< double >("pgo/max_side_len", std_config.proj_max_dis, 30.0);
+
+    nh.param< int >("pgo/desc_search_range", std_config.desc_search_range, 15);
+
+    nh.param< double >("pgo/side_resolution", std_config.side_resolution, 0.2);
+    nh.param< double >("pgo/rough_dis_threshold", std_config.rough_dis_threshold, 0.03);
+    nh.param< int >("pgo/skip_near_num", std_config.skip_near_num, 50);
+    nh.param< int >("pgo/candidate_num", std_config.candidate_num, 50);
+    nh.param< double >("pgo/vertex_diff_threshold", std_config.vertex_diff_threshold, 0.7);
+    nh.param< double >("pgo/verify_dis_thresh", std_config.verify_dis_thresh, 3.0);
+    nh.param< double >("pgo/geo_verify_dis_thresh", std_config.geo_verify_dis_thresh, 0.3);
+    nh.param< double >("pgo/icp_thresh", std_config.icp_thresh, 0.5);
+
+    nh.param< double >("pgo/iter_eps", std_config.iter_eps, 0.001);
+#endif
+
     m_p_pre->blind_sqr = m_p_pre->blind * m_p_pre->blind;
     cout << "Ranging cov:" << m_dept_err << " , angle cov:" << m_beam_err << std::endl;
     cout << "Meshing distance scale:" << m_meshing_distance_scale << " , points minimum scale:" << m_meshing_points_minimum_scale << std::endl;

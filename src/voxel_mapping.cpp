@@ -1890,6 +1890,11 @@ int Voxel_mapping::service_LiDAR_update()
         // std::cout << "feats size" << m_feats_undistort->size() << ", down size: " << m_feats_down_body->size() << std::endl;
         m_feats_down_size = m_feats_down_body->points.size();
 
+#ifdef USE_LOOP_PGO
+        get_cloud_for_std_matcher(current_cloud_world);
+        *key_frame_cloud += *current_cloud_world;
+#endif
+
         /*** initialize the map ***/
         if ( m_use_new_map )
         {
@@ -1898,6 +1903,15 @@ int Voxel_mapping::service_LiDAR_update()
                 m_init_map = voxel_map_init();
                 if ( m_is_pub_plane_map )
                     pubPlaneMap( m_feat_map, voxel_pub, state.pos_end );
+
+#ifdef USE_LOOP_PGO
+                Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+                pose.translation() = state.pos_end;
+                pose.linear() = state.rot_end;
+
+                initial.insert(frame_num, gtsam::Pose3(pose.matrix()));
+                graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), odometry_noise));
+#endif
 
                 frame_num++;
                 continue;

@@ -52,6 +52,13 @@ different license.
 #include "preprocess.h"
 #include "ikd-Tree/ikd_Tree.h"
 #include "voxel_loc.hpp"
+#include "std_manager/descriptor.h"
+
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/nonlinear/ISAM2.h>
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
 
 #define INIT_TIME ( 0.0 )
 #define MAXN ( 360000 )
@@ -287,6 +294,22 @@ class Voxel_mapping
     std::string m_pointcloud_file_name = std::string( " " );
     // PointCloudXYZRGB::Ptr pcl_wait_pub_RGB(new PointCloudXYZRGB(500000, 1));
 
+#ifdef USE_LOOP_PGO
+    std_desc::Config                      std_config;
+    std::shared_ptr<std_desc::STDManager> std_manager;
+    double                                ds_size;
+    int                                   sub_frame_num;
+
+    gtsam::Values                           initial;
+    gtsam::NonlinearFactorGraph             graph;
+    gtsam::noiseModel::Diagonal::shared_ptr odometry_noise;
+    gtsam::noiseModel::Base::shared_ptr     robust_loop_noise;
+    std::shared_ptr<gtsam::ISAM2>           isam;
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr current_cloud_world = nullptr;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr key_frame_cloud = nullptr;
+#endif
+
     Voxel_mapping()
     {
         m_extrin_T = std::vector< double >( 3, 0.0 );
@@ -313,6 +336,14 @@ class Voxel_mapping
 
         m_pcl_visual_wait_pub = PointCloudXYZI( 500000, 1 ).makeShared();
         m_sub_pcl_visual_wait_pub = PointCloudXYZI( 500000, 1 ).makeShared();
+
+#ifdef USE_LOOP_PGO
+        initSAM();
+        std_manager = std::make_shared<std_desc::STDManager>(std_config);
+
+        current_cloud_world = pcl::PointCloud<pcl::PointXYZI>().makeShared();
+        key_frame_cloud = pcl::PointCloud<pcl::PointXYZI>().makeShared();
+#endif
     }
 
     void kitti_log( FILE *fp );
@@ -412,4 +443,10 @@ class Voxel_mapping
     void lio_state_estimation( StatesGroup &state_propagat );
     void init_ros_node();
     int  service_LiDAR_update();
+
+#ifdef USE_LOOP_PGO
+    void initSAM();
+
+    void get_cloud_for_std_matcher(pcl::PointCloud<pcl::PointXYZI>::Ptr &in);
+#endif
 };
