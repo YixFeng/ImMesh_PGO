@@ -308,6 +308,10 @@ class Voxel_mapping
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr current_cloud_world = nullptr;
     pcl::PointCloud<pcl::PointXYZI>::Ptr key_frame_cloud = nullptr;
+    std::vector<Eigen::Affine3d>         pose_vec;
+    std::vector<Eigen::Affine3d>         pose_ori; // For debugging
+    std::vector<std::pair<int, int>>     loop_container;
+    bool                                 has_loop_flag = false;
 #endif
 
     Voxel_mapping()
@@ -448,5 +452,14 @@ class Voxel_mapping
     void initSAM();
 
     void get_cloud_for_std_matcher(pcl::PointCloud<pcl::PointXYZI>::Ptr &in);
+
+    bool get_std_feature_and_matching(const int frame_id);
+
+    void optimize_once_and_update();
+
+    void optimize_loop_and_update();
+
+    // For debugging
+    void compare_get_gtsam_update_num(const int frame_id);
 #endif
 };

@@ -1890,11 +1890,6 @@ int Voxel_mapping::service_LiDAR_update()
         // std::cout << "feats size" << m_feats_undistort->size() << ", down size: " << m_feats_down_body->size() << std::endl;
         m_feats_down_size = m_feats_down_body->points.size();
 
-#ifdef USE_LOOP_PGO
-        get_cloud_for_std_matcher(current_cloud_world);
-        *key_frame_cloud += *current_cloud_world;
-#endif
-
         /*** initialize the map ***/
         if ( m_use_new_map )
         {
@@ -1905,12 +1900,19 @@ int Voxel_mapping::service_LiDAR_update()
                     pubPlaneMap( m_feat_map, voxel_pub, state.pos_end );
 
 #ifdef USE_LOOP_PGO
+                cout << "Init step frame number: " << frame_num << endl;
+                get_cloud_for_std_matcher(current_cloud_world);
+                *key_frame_cloud += *current_cloud_world;
+
                 Eigen::Affine3d pose = Eigen::Affine3d::Identity();
                 pose.translation() = state.pos_end;
                 pose.linear() = state.rot_end;
 
                 initial.insert(frame_num, gtsam::Pose3(pose.matrix()));
                 graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), odometry_noise));
+                pose_vec.push_back(pose);
+
+                optimize_once_and_update();
 #endif
 
                 frame_num++;
@@ -1972,6 +1974,35 @@ int Voxel_mapping::service_LiDAR_update()
         {
             lio_state_estimation( state_propagat );
         }
+#endif
+#ifdef USE_LOOP_PGO
+        get_cloud_for_std_matcher(current_cloud_world);
+        *key_frame_cloud += *current_cloud_world;
+
+        Eigen::Affine3d pose_end = Eigen::Affine3d::Identity();
+        pose_end.translation() = state.pos_end;
+        pose_end.linear() = state.rot_end;
+
+        initial.insert(frame_num, gtsam::Pose3(pose_end.matrix()));
+        auto prev_pose = gtsam::Pose3(pose_vec[frame_num - 1].matrix());
+        auto curr_pose = gtsam::Pose3(pose_end.matrix());
+        graph.add(gtsam::BetweenFactor<gtsam::Pose3>(frame_num - 1, frame_num, 
+                                                    prev_pose.between(curr_pose), odometry_noise));
+        pose_vec.push_back(pose_end);
+        pose_ori.push_back(pose_end);
+        
+        if (frame_num % sub_frame_num == 0 && frame_num != 0) {
+            has_loop_flag = get_std_feature_and_matching(frame_num);
+        }
+
+        if (has_loop_flag) {
+            optimize_loop_and_update();
+            has_loop_flag = false;
+        } else {
+            optimize_once_and_update();
+        }
+        
+        compare_get_gtsam_update_num(frame_num);
 #endif
         double t_update_end = omp_get_wtime();
         /******* Publish odometry *******/

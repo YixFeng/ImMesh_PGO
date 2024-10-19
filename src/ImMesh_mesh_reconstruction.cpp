@@ -458,9 +458,102 @@ void Voxel_mapping::initSAM() {
 }
 
 void Voxel_mapping::get_cloud_for_std_matcher(pcl::PointCloud<pcl::PointXYZI>::Ptr &in) {
-    PointCloudXYZI::Ptr temp_feats_world = PointCloudXYZI().makeShared();
-    frameBodyToWorld(m_feats_undistort, temp_feats_world);
-    pcl::copyPointCloud(*temp_feats_world, *in);
+    in->clear();
+
+    transformLidar(state.rot_end, state.pos_end, m_feats_undistort, in);
+
     std_desc::voxelFilter(in, ds_size);
+}
+
+bool Voxel_mapping::get_std_feature_and_matching(const int frame_id) {
+    bool has_loop = false;
+
+    std_desc::STDFeature feature = std_manager->extract(key_frame_cloud);
+    cout << "ID: " << frame_id << " Feature Size: " << feature.descs.size() << " Cloud Size: " << key_frame_cloud->size() << endl;
+    std_desc::LoopResult result;
+
+    int64_t duration;
+    if (frame_id > std_config.skip_near_num) {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        result = std_manager->searchLoop(feature);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+    }
+    
+    std_manager->insert(feature);
+    if (result.valid) {
+        ROS_WARN("FIND MATCHED LOOP! Current ID: %lu, Loop ID: %lu, Match Score: %.4f, Time Cost: %lu ms", feature.id, result.match_id, result.match_score, duration);
+        double score = std_manager->verifyGeoPlaneICP(feature.cloud, std_manager->cloud_vec[result.match_id], result.rotation, result.translation);
+        has_loop = true;
+        loop_container.emplace_back(result.match_id, feature.id);
+        for (size_t j = 1; j <= sub_frame_num; j++) {
+            // 当前关键帧，是由过去10帧加起来的
+            int src_frame = frame_id + j - sub_frame_num;
+            // 历史配对帧，由于feature id即match_id，是由STD内部计数，提取feature每10帧一个关键帧提取一次，因此match_id的计数总是由这个10倍的关系
+            int tar_frame = result.match_id * sub_frame_num + j;
+
+            Eigen::Affine3d delta_pose = Eigen::Affine3d::Identity();
+            delta_pose.translation() = result.translation;
+            delta_pose.linear() = result.rotation;
+
+            Eigen::Affine3d refined_src = delta_pose * pose_vec[src_frame];
+            Eigen::Affine3d tar_pose = pose_vec[tar_frame];
+
+            graph.add(gtsam::BetweenFactor<gtsam::Pose3>(tar_frame, src_frame,
+                                                        gtsam::Pose3(tar_pose.matrix()).between(gtsam::Pose3(refined_src.matrix())),
+                                                        robust_loop_noise));
+        }
+    }
+    key_frame_cloud->clear();
+
+    return has_loop;
+}
+
+void Voxel_mapping::optimize_once_and_update() {
+    isam->update(graph, initial);
+    isam->update();
+
+    graph.resize(0);
+    initial.clear();
+
+    gtsam::Values current_estimates = isam->calculateEstimate();
+    assert(current_estimates.size() == pose_vec.size());
+
+    for (int i = 0; i < current_estimates.size(); i++) {
+        gtsam::Pose3 est = current_estimates.at<gtsam::Pose3>(i);
+        pose_vec[i] = Eigen::Affine3d(est.matrix());
+    }
+}
+
+void Voxel_mapping::optimize_loop_and_update() {
+    isam->update(graph, initial);
+    isam->update();
+    isam->update();
+    isam->update();
+    isam->update();
+    isam->update();
+
+    graph.resize(0);
+    initial.clear();
+
+    gtsam::Values current_estimates = isam->calculateEstimate();
+    assert(current_estimates.size() == pose_vec.size());
+
+    for (int i = 0; i < current_estimates.size(); i++) {
+        gtsam::Pose3 est = current_estimates.at<gtsam::Pose3>(i);
+        pose_vec[i] = Eigen::Affine3d(est.matrix());
+    }
+}
+
+void Voxel_mapping::compare_get_gtsam_update_num(const int frame_id) {
+    assert(pose_vec.size() == pose_ori.size());
+
+    int num_of_update = 0;
+    double eps = 1e-6;
+    for (int i = 0; i < pose_vec.size(); i++) {
+        if ((pose_vec[i].matrix() - pose_ori[i].matrix()).norm() > eps)
+            num_of_update++;
+    }
+    cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << endl;
 }
 #endif
