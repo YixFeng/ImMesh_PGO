@@ -1900,7 +1900,7 @@ int Voxel_mapping::service_LiDAR_update()
                     pubPlaneMap( m_feat_map, voxel_pub, state.pos_end );
 
 #ifdef USE_LOOP_PGO
-                cout << "Init step frame number: " << frame_num << endl;
+                cout << "Initialization frame number: " << frame_num << endl;
                 get_cloud_for_std_matcher(current_cloud_world);
                 *key_frame_cloud += *current_cloud_world;
 
@@ -1909,8 +1909,9 @@ int Voxel_mapping::service_LiDAR_update()
                 pose.linear() = state.rot_end;
 
                 initial.insert(frame_num, gtsam::Pose3(pose.matrix()));
-                graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), odometry_noise));
+                graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), prior_noise));
                 pose_vec.push_back(pose);
+                pose_ori.push_back(pose);
 
                 optimize_once_and_update();
 #endif
@@ -2002,7 +2003,7 @@ int Voxel_mapping::service_LiDAR_update()
             optimize_once_and_update();
         }
         
-        compare_get_gtsam_update_num(frame_num);
+        compare_get_gtsam_update_num(frame_num); // For Debugging
 #endif
         double t_update_end = omp_get_wtime();
         /******* Publish odometry *******/
@@ -2076,17 +2077,18 @@ int Voxel_mapping::service_LiDAR_update()
         if ( m_lidar_en )
         {
             m_euler_cur = RotMtoEuler( state.rot_end );
-            // #ifdef USE_IKFOM
-            //             fout_out << setw( 20 ) << LidarMeasures.last_update_time - first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
-            //                      << state_point.pos.transpose() << " " << state_point.vel.transpose() << " " << state_point.bg.transpose() << " "
-            //                      << state_point.ba.transpose() << " " << state_point.grav << " " << feats_undistort->points.size() << endl;
-            // #else
-            //             m_fout_out << setw( 20 ) << m_Lidar_Measures.last_update_time - m_first_lidar_time << " " << m_euler_cur.transpose() * 57.3
-            //             << " "
-            //                        << state.pos_end.transpose() << " " << state.vel_end.transpose() << " " << state.bias_g.transpose() << " "
-            //                        << state.bias_a.transpose() << " " << state.gravity.transpose() << " " << m_feats_undistort->points.size() <<
-            //                        endl;
-            // #endif
+            Eigen::Affine3d m_gtsam_cur = pose_vec[frame_num];
+            V3D m_euler_gtsam = RotMtoEuler(m_gtsam_cur.rotation());
+#ifdef USE_IKFOM
+            fout_out << setw( 20 ) << LidarMeasures.last_update_time - first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
+                        << state_point.pos.transpose() << " " << state_point.vel.transpose() << " " << state_point.bg.transpose() << " "
+                        << state_point.ba.transpose() << " " << state_point.grav << " " << feats_undistort->points.size() << endl;
+#else
+            m_fout_out << setw( 20 ) << m_Lidar_Measures.last_update_time - m_first_lidar_time << " " << m_euler_cur.transpose() * 57.3 << " "
+                        << state.pos_end.transpose() << endl;
+            m_fout_dbg << setw( 20 ) << m_Lidar_Measures.last_update_time - m_first_lidar_time << " " << m_euler_gtsam.transpose() * 57.3 << " "
+                        << m_gtsam_cur.translation().transpose() << endl;
+#endif
         }
     }
 

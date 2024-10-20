@@ -302,6 +302,7 @@ class Voxel_mapping
 
     gtsam::Values                           initial;
     gtsam::NonlinearFactorGraph             graph;
+    gtsam::noiseModel::Diagonal::shared_ptr prior_noise;
     gtsam::noiseModel::Diagonal::shared_ptr odometry_noise;
     gtsam::noiseModel::Base::shared_ptr     robust_loop_noise;
     std::shared_ptr<gtsam::ISAM2>           isam;
@@ -312,6 +313,7 @@ class Voxel_mapping
     std::vector<Eigen::Affine3d>         pose_ori; // For debugging
     std::vector<std::pair<int, int>>     loop_container;
     bool                                 has_loop_flag = false;
+    int                                  prev_update_num = 0; // For debugging
 #endif
 
     Voxel_mapping()

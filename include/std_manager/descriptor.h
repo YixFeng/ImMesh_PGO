@@ -4,7 +4,6 @@
 #include <Eigen/Eigen>
 #include <unordered_set>
 #include <unordered_map>
-#include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>

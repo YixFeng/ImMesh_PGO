@@ -81,5 +81,34 @@ meshing:
     number_of_pts_append_to_map: 10000  # Number of pts appending to map (per-frame)
     if_draw_mesh: 1
 
+pgo:
+    ds_size: 0.1
+    max_corner_num: 100
 
-    
+    voxel_plane_thresh: 0.01
+    norm_merge_thresh: 0.1
+    voxel_size: 2.0   
+    voxel_min_point: 10
+    proj_2d_resolution: 0.5
+    proj_min_dis: 0.0
+    proj_max_dis: 5.0
+    corner_thresh: 10.0
+
+    desc_search_range: 15
+    min_side_len: 2.0
+    max_side_len: 30.0
+    nms_2d_range: 5
+    nms_3d_range: 2.0
+    side_resolution: 0.2
+
+    skip_near_num: 50
+    candidate_num: 50
+    sub_frame_num: 10
+    vertex_diff_threshold: 0.5
+    rough_dis_threshold: 0.01
+    geo_verify_dis_thresh: 0.5
+    icp_thresh: 0.4
+    verify_dis_thresh: 3.0
+
+    iter_eps: 0.001
+    max_iter: 10

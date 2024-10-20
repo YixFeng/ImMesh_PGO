@@ -446,11 +446,13 @@ void Voxel_mapping::map_incremental_grow()
 
 #ifdef USE_LOOP_PGO
 void Voxel_mapping::initSAM() {
+    prior_noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-2, 1e-2, M_PI * M_PI, 1e8, 1e8, 1e8).finished());
     odometry_noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished());
     gtsam::Vector robustNoiseVector(6);
     robustNoiseVector << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1;
     robust_loop_noise = gtsam::noiseModel::Robust::Create(
         gtsam::noiseModel::mEstimator::Cauchy::Create(1), gtsam::noiseModel::Diagonal::Variances(robustNoiseVector));
+    
     gtsam::ISAM2Params parameters;
     parameters.relinearizeSkip = 1;
     parameters.relinearizeThreshold = 0.01;
@@ -469,7 +471,7 @@ bool Voxel_mapping::get_std_feature_and_matching(const int frame_id) {
     bool has_loop = false;
 
     std_desc::STDFeature feature = std_manager->extract(key_frame_cloud);
-    cout << "ID: " << frame_id << " Feature Size: " << feature.descs.size() << " Cloud Size: " << key_frame_cloud->size() << endl;
+    // cout << "ID: " << frame_id << " Feature Size: " << feature.descs.size() << " Cloud Size: " << key_frame_cloud->size() << endl;
     std_desc::LoopResult result;
 
     int64_t duration;
@@ -482,7 +484,7 @@ bool Voxel_mapping::get_std_feature_and_matching(const int frame_id) {
     
     std_manager->insert(feature);
     if (result.valid) {
-        ROS_WARN("FIND MATCHED LOOP! Current ID: %lu, Loop ID: %lu, Match Score: %.4f, Time Cost: %lu ms", feature.id, result.match_id, result.match_score, duration);
+        ROS_WARN("FIND MATCHED LOOP! Frame ID: %lu, Current ID: %lu, Loop ID: %lu, Match Score: %.4f, Time Cost: %lu ms", frame_id, feature.id, result.match_id, result.match_score, duration);
         double score = std_manager->verifyGeoPlaneICP(feature.cloud, std_manager->cloud_vec[result.match_id], result.rotation, result.translation);
         has_loop = true;
         loop_container.emplace_back(result.match_id, feature.id);
@@ -549,11 +551,14 @@ void Voxel_mapping::compare_get_gtsam_update_num(const int frame_id) {
     assert(pose_vec.size() == pose_ori.size());
 
     int num_of_update = 0;
-    double eps = 1e-6;
+    double eps = 1e-1;
     for (int i = 0; i < pose_vec.size(); i++) {
         if ((pose_vec[i].matrix() - pose_ori[i].matrix()).norm() > eps)
             num_of_update++;
     }
-    cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << endl;
+    if (num_of_update && num_of_update != prev_update_num) {
+        prev_update_num = num_of_update;
+        cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << endl;
+    }
 }
 #endif
