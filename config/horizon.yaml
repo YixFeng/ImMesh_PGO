@@ -116,3 +116,5 @@ pgo:
 
     iter_eps: 0.001
     max_iter: 10
+
+    gtsam_pose_update_thres: 1.0e-2

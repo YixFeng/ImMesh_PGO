@@ -731,6 +731,8 @@ void Voxel_mapping::read_ros_parameters( ros::NodeHandle &nh )
     nh.param< double >("pgo/verify_dis_thresh", std_config.verify_dis_thresh, 3.0);
 
     nh.param< double >("pgo/iter_eps", std_config.iter_eps, 0.001);
+    
+    nh.param< double >("pgo/gtsam_pose_update_thres", gtsam_pose_update_thres, 1e-4);
 #endif
 
     m_p_pre->blind_sqr = m_p_pre->blind * m_p_pre->blind;

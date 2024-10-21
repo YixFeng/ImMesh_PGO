@@ -409,13 +409,38 @@ void Voxel_mapping::map_incremental_grow()
         double vx_map_cost_time = omp_get_wtime();
         g_vx_map_frame_cost_time = ( vx_map_cost_time - g_LiDAR_frame_start_time ) * 1000.0;
         // cout << "vx_map_cost_time = " <<  g_vx_map_frame_cost_time << " ms" << endl;
+#ifdef USE_LOOP_PGO
+        if (!has_loop_flag) {
+            // 因为这里没有算prior那一帧，但是pose_vec里存有init priorFactor那一帧
+            int pose_vec_index = g_frame_idx + 1;
+            Eigen::Affine3d temp_transform = pose_vec[pose_vec_index].second;
+            transformLidar(temp_transform.linear(), temp_transform.translation(), m_feats_undistort, world_lidar_full);
 
+            g_mutex_data_package_lock.lock();
+            g_rec_mesh_data_package_list.emplace_back(world_lidar_full, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), g_frame_idx);
+            g_mutex_data_package_lock.unlock();
+        } else {
+            // 从index=1开始，由于index=0的prior帧并没有进入这个函数
+            for (int i = 1; i < pose_vec.size(); i++) {
+                if ((pose_vec[i].second.matrix() - pose_ori[i].matrix()).norm() > gtsam_pose_update_thres) {
+                    Eigen::Affine3d temp_transform = pose_vec[i].second;
+                    pcl::PointCloud<pcl::PointXYZI>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+                    transformLidar(temp_transform.linear(), temp_transform.translation(), pose_vec[i].first.makeShared(), temp_cloud);
+
+                    g_mutex_data_package_lock.lock();
+                    g_rec_mesh_data_package_list.emplace_back(temp_cloud, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), i - 1);
+                    g_mutex_data_package_lock.unlock();
+                }
+            }
+        }
+#else
         transformLidar( state.rot_end, state.pos_end, m_feats_undistort, world_lidar_full );
          
         g_mutex_data_package_lock.lock();
         // ANCHOR: meshing用data package
         g_rec_mesh_data_package_list.emplace_back( world_lidar_full, Eigen::Quaterniond( state.rot_end ), state.pos_end, g_frame_idx );
         g_mutex_data_package_lock.unlock();
+#endif
         open_log_file();
         if ( g_fp_lio_state != nullptr )
         {
@@ -498,8 +523,8 @@ bool Voxel_mapping::get_std_feature_and_matching(const int frame_id) {
             delta_pose.translation() = result.translation;
             delta_pose.linear() = result.rotation;
 
-            Eigen::Affine3d refined_src = delta_pose * pose_vec[src_frame];
-            Eigen::Affine3d tar_pose = pose_vec[tar_frame];
+            Eigen::Affine3d refined_src = delta_pose * pose_ori[src_frame];
+            Eigen::Affine3d tar_pose = pose_ori[tar_frame];
 
             graph.add(gtsam::BetweenFactor<gtsam::Pose3>(tar_frame, src_frame,
                                                         gtsam::Pose3(tar_pose.matrix()).between(gtsam::Pose3(refined_src.matrix())),
@@ -523,7 +548,7 @@ void Voxel_mapping::optimize_once_and_update() {
 
     for (int i = 0; i < current_estimates.size(); i++) {
         gtsam::Pose3 est = current_estimates.at<gtsam::Pose3>(i);
-        pose_vec[i] = Eigen::Affine3d(est.matrix());
+        pose_vec[i].second = Eigen::Affine3d(est.matrix());
     }
 }
 
@@ -543,7 +568,7 @@ void Voxel_mapping::optimize_loop_and_update() {
 
     for (int i = 0; i < current_estimates.size(); i++) {
         gtsam::Pose3 est = current_estimates.at<gtsam::Pose3>(i);
-        pose_vec[i] = Eigen::Affine3d(est.matrix());
+        pose_vec[i].second = Eigen::Affine3d(est.matrix());
     }
 }
 
@@ -551,14 +576,13 @@ void Voxel_mapping::compare_get_gtsam_update_num(const int frame_id) {
     assert(pose_vec.size() == pose_ori.size());
 
     int num_of_update = 0;
-    double eps = 1e-1;
     for (int i = 0; i < pose_vec.size(); i++) {
-        if ((pose_vec[i].matrix() - pose_ori[i].matrix()).norm() > eps)
+        if ((pose_vec[i].second.matrix() - pose_ori[i].matrix()).norm() > gtsam_pose_update_thres)
             num_of_update++;
     }
     if (num_of_update && num_of_update != prev_update_num) {
         prev_update_num = num_of_update;
-        cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << endl;
+        cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << " Thres: " << gtsam_pose_update_thres << endl;
     }
 }
 #endif

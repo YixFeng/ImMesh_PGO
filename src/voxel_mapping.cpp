@@ -1900,20 +1900,25 @@ int Voxel_mapping::service_LiDAR_update()
                     pubPlaneMap( m_feat_map, voxel_pub, state.pos_end );
 
 #ifdef USE_LOOP_PGO
-                cout << "Initialization frame number: " << frame_num << endl;
+                PointCloudXYZI curr_cloud_full;
+                pcl::copyPointCloud(*m_feats_undistort, curr_cloud_full);
+
                 get_cloud_for_std_matcher(current_cloud_world);
                 *key_frame_cloud += *current_cloud_world;
 
-                Eigen::Affine3d pose = Eigen::Affine3d::Identity();
-                pose.translation() = state.pos_end;
-                pose.linear() = state.rot_end;
+                if (m_init_map) {
+                    ROS_INFO("Initialization Frame Index: %d", frame_num);
+                    Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+                    pose.translation() = state.pos_end;
+                    pose.linear() = state.rot_end;
 
-                initial.insert(frame_num, gtsam::Pose3(pose.matrix()));
-                graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), prior_noise));
-                pose_vec.push_back(pose);
-                pose_ori.push_back(pose);
+                    initial.insert(frame_num, gtsam::Pose3(pose.matrix()));
+                    graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), prior_noise));
+                    pose_vec.emplace_back(curr_cloud_full, pose);
+                    pose_ori.push_back(pose);
 
-                optimize_once_and_update();
+                    optimize_once_and_update();
+                }
 #endif
 
                 frame_num++;
@@ -1977,6 +1982,9 @@ int Voxel_mapping::service_LiDAR_update()
         }
 #endif
 #ifdef USE_LOOP_PGO
+        PointCloudXYZI curr_cloud_full;
+        pcl::copyPointCloud(*m_feats_undistort, curr_cloud_full);
+
         get_cloud_for_std_matcher(current_cloud_world);
         *key_frame_cloud += *current_cloud_world;
 
@@ -1985,11 +1993,11 @@ int Voxel_mapping::service_LiDAR_update()
         pose_end.linear() = state.rot_end;
 
         initial.insert(frame_num, gtsam::Pose3(pose_end.matrix()));
-        auto prev_pose = gtsam::Pose3(pose_vec[frame_num - 1].matrix());
+        auto prev_pose = gtsam::Pose3(pose_ori[frame_num - 1].matrix());
         auto curr_pose = gtsam::Pose3(pose_end.matrix());
         graph.add(gtsam::BetweenFactor<gtsam::Pose3>(frame_num - 1, frame_num, 
                                                     prev_pose.between(curr_pose), odometry_noise));
-        pose_vec.push_back(pose_end);
+        pose_vec.emplace_back(curr_cloud_full, pose_end);
         pose_ori.push_back(pose_end);
         
         if (frame_num % sub_frame_num == 0 && frame_num != 0) {
@@ -1998,7 +2006,6 @@ int Voxel_mapping::service_LiDAR_update()
 
         if (has_loop_flag) {
             optimize_loop_and_update();
-            has_loop_flag = false;
         } else {
             optimize_once_and_update();
         }
@@ -2048,6 +2055,7 @@ int Voxel_mapping::service_LiDAR_update()
         // #endif
 
         /*** Debug variables ***/
+        has_loop_flag = false;
         frame_num++;
         aver_time_consu = aver_time_consu * ( frame_num - 1 ) / frame_num + ( t5 - t0 ) / frame_num;
         aver_time_icp = aver_time_icp * ( frame_num - 1 ) / frame_num + ( t_update_end - t_update_start ) / frame_num;
@@ -2077,7 +2085,7 @@ int Voxel_mapping::service_LiDAR_update()
         if ( m_lidar_en )
         {
             m_euler_cur = RotMtoEuler( state.rot_end );
-            Eigen::Affine3d m_gtsam_cur = pose_vec[frame_num];
+            Eigen::Affine3d m_gtsam_cur = pose_vec[frame_num - 1].second;
             V3D m_euler_gtsam = RotMtoEuler(m_gtsam_cur.rotation());
 #ifdef USE_IKFOM
             fout_out << setw( 20 ) << LidarMeasures.last_update_time - first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
