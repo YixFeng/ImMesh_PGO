@@ -410,18 +410,9 @@ void Voxel_mapping::map_incremental_grow()
         g_vx_map_frame_cost_time = ( vx_map_cost_time - g_LiDAR_frame_start_time ) * 1000.0;
         // cout << "vx_map_cost_time = " <<  g_vx_map_frame_cost_time << " ms" << endl;
 #ifdef USE_LOOP_PGO
-        if (!has_loop_flag) {
-            // 因为这里没有算prior那一帧，但是pose_vec里存有init priorFactor那一帧
-            int pose_vec_index = g_frame_idx + 1;
-            Eigen::Affine3d temp_transform = pose_vec[pose_vec_index].second;
-            transformLidar(temp_transform.linear(), temp_transform.translation(), m_feats_undistort, world_lidar_full);
-
-            g_mutex_data_package_lock.lock();
-            g_rec_mesh_data_package_list.emplace_back(world_lidar_full, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), g_frame_idx);
-            g_mutex_data_package_lock.unlock();
-        } else {
-            // 从index=1开始，由于index=0的prior帧并没有进入这个函数
-            for (int i = 1; i < pose_vec.size(); i++) {
+        if (has_loop_flag) {
+            // 从index=1开始，由于index=0的prior帧并没有进入这个函数。并且这里不包含最后一帧，因为无论gtsam的更新量有没有超过阈值，最后一帧都需要加入meshing
+            for (int i = 1; i <= pose_vec.size() - 2; i++) {
                 if ((pose_vec[i].second.matrix() - pose_ori[i].matrix()).norm() > gtsam_pose_update_thres) {
                     Eigen::Affine3d temp_transform = pose_vec[i].second;
                     pcl::PointCloud<pcl::PointXYZI>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZI>());
@@ -433,6 +424,14 @@ void Voxel_mapping::map_incremental_grow()
                 }
             }
         }
+        // 因为进入这个函数没有算prior那一帧，但是pose_vec里存有init priorFactor那一帧
+        int pose_vec_index = g_frame_idx + 1;
+        Eigen::Affine3d temp_transform = pose_vec[pose_vec_index].second;
+        transformLidar(temp_transform.linear(), temp_transform.translation(), m_feats_undistort, world_lidar_full);
+
+        g_mutex_data_package_lock.lock();
+        g_rec_mesh_data_package_list.emplace_back(world_lidar_full, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), g_frame_idx);
+        g_mutex_data_package_lock.unlock();
 #else
         transformLidar( state.rot_end, state.pos_end, m_feats_undistort, world_lidar_full );
          
@@ -580,9 +579,9 @@ void Voxel_mapping::compare_get_gtsam_update_num(const int frame_id) {
         if ((pose_vec[i].second.matrix() - pose_ori[i].matrix()).norm() > gtsam_pose_update_thres)
             num_of_update++;
     }
-    if (num_of_update && num_of_update != prev_update_num) {
-        prev_update_num = num_of_update;
+    if (num_of_update && (num_of_update - 1 != prev_update_num)) {
         cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << " Thres: " << gtsam_pose_update_thres << endl;
     }
+    prev_update_num = num_of_update;
 }
 #endif
