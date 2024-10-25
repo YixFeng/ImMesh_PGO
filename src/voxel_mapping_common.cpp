@@ -702,7 +702,7 @@ void Voxel_mapping::read_ros_parameters( ros::NodeHandle &nh )
     nh.param< int >( "meshing/number_of_pts_append_to_map", m_meshing_number_of_pts_append_to_map, 10000 );
 
 #ifdef USE_LOOP_PGO
-    nh.param< double >("pgo/ds_size", ds_size, 0.25);
+    nh.param< double >("pgo/ds_size", std_config.ds_size, 0.25);
     nh.param< int >("pgo/max_corner_num", std_config.max_corner_num, 100);
 
     nh.param< double >("pgo/voxel_plane_thresh", std_config.voxel_plane_thresh, 0.01);
@@ -723,7 +723,7 @@ void Voxel_mapping::read_ros_parameters( ros::NodeHandle &nh )
 
     nh.param< int >("pgo/skip_near_num", std_config.skip_near_num, 50);
     nh.param< int >("pgo/candidate_num", std_config.candidate_num, 50);
-    nh.param< int >("pgo/sub_frame_num", sub_frame_num, 10);
+    nh.param< int >("pgo/sub_frame_num", std_config.sub_frame_num, 10);
     nh.param< double >("pgo/vertex_diff_threshold", std_config.vertex_diff_threshold, 0.7);
     nh.param< double >("pgo/rough_dis_threshold", std_config.rough_dis_threshold, 0.03);
     nh.param< double >("pgo/geo_verify_dis_thresh", std_config.geo_verify_dis_thresh, 0.3);
@@ -732,12 +732,48 @@ void Voxel_mapping::read_ros_parameters( ros::NodeHandle &nh )
 
     nh.param< double >("pgo/iter_eps", std_config.iter_eps, 0.001);
     
-    nh.param< double >("pgo/gtsam_pose_update_thres", gtsam_pose_update_thres, 1e-4);
+    nh.param< double >("pgo/pgo_pose_update_thres", pgo_pose_update_thres, 1e-4);
+
+    std_manager->config = std_config;
 #endif
 
     m_p_pre->blind_sqr = m_p_pre->blind * m_p_pre->blind;
     cout << "Ranging cov:" << m_dept_err << " , angle cov:" << m_beam_err << std::endl;
     cout << "Meshing distance scale:" << m_meshing_distance_scale << " , points minimum scale:" << m_meshing_points_minimum_scale << std::endl;
+
+#ifdef USE_LOOP_PGO
+    scope_color(ANSI_COLOR_BLUE_BOLD);
+    cout << "===== STD CONFIG =====" << endl;
+    cout << "ds_size = " << std_manager->config.ds_size << endl;
+    cout << "max_corner_num = " << std_manager->config.max_corner_num << endl;
+
+    cout << "voxel_plane_thresh = " << std_manager->config.voxel_plane_thresh << endl;
+    cout << "norm_merge_thresh = " << std_manager->config.norm_merge_thresh << endl;
+    cout << "voxel_size = " << std_manager->config.voxel_size << endl;
+    cout << "voxel_min_point = " << std_manager->config.voxel_min_point << endl;
+    cout << "proj_2d_resolution = " << std_manager->config.proj_2d_resolution << endl;
+    cout << "proj_min_dis = " << std_manager->config.proj_min_dis << endl;
+    cout << "proj_max_dis = " << std_manager->config.proj_max_dis << endl;
+    cout << "corner_thresh = " << std_manager->config.corner_thresh << endl;
+
+    cout << "desc_search_range = " << std_manager->config.desc_search_range << endl;
+    cout << "min_side_len = " << std_manager->config.min_side_len << endl;
+    cout << "max_side_len = " << std_manager->config.max_side_len << endl;
+    cout << "nms_2d_range = " << std_manager->config.nms_2d_range << endl;
+    cout << "side_resolution = " << std_manager->config.side_resolution << endl;
+
+    cout << "skip_near_num = " << std_manager->config.skip_near_num << endl;
+    cout << "candidate_num = " << std_manager->config.candidate_num << endl;
+    cout << "sub_frame_num = " << std_manager->config.sub_frame_num << endl;
+    cout << "vertex_diff_threshold = " << std_manager->config.vertex_diff_threshold << endl;
+    cout << "rough_dis_threshold = " << std_manager->config.rough_dis_threshold << endl;
+    cout << "geo_verify_dis_thresh = " << std_manager->config.geo_verify_dis_thresh << endl;
+    cout << "icp_thresh = " << std_manager->config.icp_thresh << endl;
+    cout << "verify_dis_thresh = " << std_manager->config.verify_dis_thresh << endl;
+
+    cout << "iter_eps = " << std_manager->config.iter_eps << endl;
+    cout << "===== STD END =====" << endl;
+#endif
 }
 
 void Voxel_mapping::transformLidar( const Eigen::Matrix3d rot, const Eigen::Vector3d t, const PointCloudXYZI::Ptr &input_cloud,

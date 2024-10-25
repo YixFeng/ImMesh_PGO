@@ -98,7 +98,7 @@ pgo:
     proj_max_dis: 5.0
     corner_thresh: 10.0
 
-    desc_search_range: 15
+    desc_search_range: 20
     min_side_len: 2.0
     max_side_len: 30.0
     nms_2d_range: 5
@@ -117,4 +117,4 @@ pgo:
     iter_eps: 0.001
     max_iter: 10
 
-    gtsam_pose_update_thres: 1.0e-2
+    pgo_pose_update_thres: 1.0e-2

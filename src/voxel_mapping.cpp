@@ -1914,8 +1914,8 @@ int Voxel_mapping::service_LiDAR_update()
 
                     initial.insert(frame_num, gtsam::Pose3(pose.matrix()));
                     graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), prior_noise));
-                    pose_vec.emplace_back(curr_cloud_full, pose);
-                    pose_ori.push_back(pose);
+                    pc_pose_pgo.emplace_back(curr_cloud_full, pose);
+                    pose_odom.push_back(pose);
 
                     optimize_once_and_update();
                 }
@@ -1993,14 +1993,14 @@ int Voxel_mapping::service_LiDAR_update()
         pose_end.linear() = state.rot_end;
 
         initial.insert(frame_num, gtsam::Pose3(pose_end.matrix()));
-        auto prev_pose = gtsam::Pose3(pose_ori[frame_num - 1].matrix());
+        auto prev_pose = gtsam::Pose3(pose_odom[frame_num - 1].matrix());
         auto curr_pose = gtsam::Pose3(pose_end.matrix());
         graph.add(gtsam::BetweenFactor<gtsam::Pose3>(frame_num - 1, frame_num, 
                                                     prev_pose.between(curr_pose), odometry_noise));
-        pose_vec.emplace_back(curr_cloud_full, pose_end);
-        pose_ori.push_back(pose_end);
+        pc_pose_pgo.emplace_back(curr_cloud_full, pose_end);
+        pose_odom.push_back(pose_end);
         
-        if (frame_num % sub_frame_num == 0 && frame_num != 0) {
+        if (frame_num % std_manager->config.sub_frame_num == 0 && frame_num != 0) {
             has_loop_flag = get_std_feature_and_matching(frame_num);
         }
 
@@ -2055,7 +2055,9 @@ int Voxel_mapping::service_LiDAR_update()
         // #endif
 
         /*** Debug variables ***/
+#ifdef USE_LOOP_PGO
         has_loop_flag = false;
+#endif
         frame_num++;
         aver_time_consu = aver_time_consu * ( frame_num - 1 ) / frame_num + ( t5 - t0 ) / frame_num;
         aver_time_icp = aver_time_icp * ( frame_num - 1 ) / frame_num + ( t_update_end - t_update_start ) / frame_num;
@@ -2085,18 +2087,17 @@ int Voxel_mapping::service_LiDAR_update()
         if ( m_lidar_en )
         {
             m_euler_cur = RotMtoEuler( state.rot_end );
-            Eigen::Affine3d m_gtsam_cur = pose_vec[frame_num - 1].second;
-            V3D m_euler_gtsam = RotMtoEuler(m_gtsam_cur.rotation());
-#ifdef USE_IKFOM
-            fout_out << setw( 20 ) << LidarMeasures.last_update_time - first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
-                        << state_point.pos.transpose() << " " << state_point.vel.transpose() << " " << state_point.bg.transpose() << " "
-                        << state_point.ba.transpose() << " " << state_point.grav << " " << feats_undistort->points.size() << endl;
-#else
-            m_fout_out << setw( 20 ) << m_Lidar_Measures.last_update_time - m_first_lidar_time << " " << m_euler_cur.transpose() * 57.3 << " "
-                        << state.pos_end.transpose() << endl;
-            m_fout_dbg << setw( 20 ) << m_Lidar_Measures.last_update_time - m_first_lidar_time << " " << m_euler_gtsam.transpose() * 57.3 << " "
-                        << m_gtsam_cur.translation().transpose() << endl;
-#endif
+            // #ifdef USE_IKFOM
+            //             fout_out << setw( 20 ) << LidarMeasures.last_update_time - first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
+            //                      << state_point.pos.transpose() << " " << state_point.vel.transpose() << " " << state_point.bg.transpose() << " "
+            //                      << state_point.ba.transpose() << " " << state_point.grav << " " << feats_undistort->points.size() << endl;
+            // #else
+            //             m_fout_out << setw( 20 ) << m_Lidar_Measures.last_update_time - m_first_lidar_time << " " << m_euler_cur.transpose() * 57.3
+            //             << " "
+            //                        << state.pos_end.transpose() << " " << state.vel_end.transpose() << " " << state.bias_g.transpose() << " "
+            //                        << state.bias_a.transpose() << " " << state.gravity.transpose() << " " << m_feats_undistort->points.size() <<
+            //                        endl;
+            // #endif
         }
     }
 

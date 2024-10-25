@@ -35,3 +35,9 @@ cd ../
 catkin_make
 source ~/catkin_ws/devel/setup.bash
 ```
+
+## Acknowledgement
+Thanks for following open-sourced repositories and authors:
+- [ImMesh: An Immediate LiDAR Localization and Meshing Framework](https://github.com/hku-mars/ImMesh)
+- [STD: A Stable Triangle Descriptor for 3D place recognition](https://github.com/hku-mars/STD)
+- [FAST_LIO_SLAM: Integration of FAST-LIO2 and Scan Context-based Loop Detection](https://github.com/gisbi-kim/FAST_LIO_SLAM)

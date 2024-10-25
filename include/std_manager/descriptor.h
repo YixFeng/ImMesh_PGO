@@ -53,31 +53,33 @@ namespace std_desc
 
     struct Config
     {
-        int voxel_min_point = 10;
-        double voxel_size = 1.0;
+        double ds_size = 0.25;
+        int max_corner_num = 100;
+
         double voxel_plane_thresh = 0.01;
         double norm_merge_thresh = 0.1;
-
+        double voxel_size = 1.0;
+        int voxel_min_point = 10;
         double proj_2d_resolution = 0.25;
         double proj_min_dis = 0.0;
         double proj_max_dis = 5.0;
-
-        int nms_2d_range = 5;
-        double nms_3d_range = 2.0;
         double corner_thresh = 10.0;
-        int max_corner_num = 100;
+
+        int desc_search_range = 15;
         double min_side_len = 2.0;
         double max_side_len = 30.0;
-        int desc_search_range = 15;
-
+        int nms_2d_range = 5;
+        double nms_3d_range = 2.0;
         double side_resolution = 0.2;
-        double rough_dis_threshold = 0.03;
+
         int skip_near_num = 50;
-        double vertex_diff_threshold = 0.7;
         int candidate_num = 50;
-        double verify_dis_thresh = 3.0;
+        int sub_frame_num = 10;
+        double vertex_diff_threshold = 0.7;
+        double rough_dis_threshold = 0.03;
         double geo_verify_dis_thresh = 0.3;
         double icp_thresh = 0.5;
+        double verify_dis_thresh = 3.0;
 
         double iter_eps = 1e-3;
         size_t max_iter = 10;

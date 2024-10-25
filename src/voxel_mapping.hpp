@@ -297,9 +297,7 @@ class Voxel_mapping
 #ifdef USE_LOOP_PGO
     std_desc::Config                      std_config;
     std::shared_ptr<std_desc::STDManager> std_manager;
-    double                                ds_size;
-    int                                   sub_frame_num;
-    double                                gtsam_pose_update_thres;
+    double                                pgo_pose_update_thres;
 
     gtsam::Values                           initial;
     gtsam::NonlinearFactorGraph             graph;
@@ -310,11 +308,11 @@ class Voxel_mapping
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr current_cloud_world = nullptr;
     pcl::PointCloud<pcl::PointXYZI>::Ptr key_frame_cloud = nullptr;
-    std::vector<std::pair<PointCloudXYZI, Eigen::Affine3d>> pose_vec;
-    std::vector<Eigen::Affine3d>         pose_ori; // For debugging
+    std::vector<std::pair<PointCloudXYZI, Eigen::Affine3d>> pc_pose_pgo;
+    std::vector<Eigen::Affine3d>         pose_odom;
     std::vector<std::pair<int, int>>     loop_container;
     bool                                 has_loop_flag = false;
-    int                                  prev_update_num = 0; // For debugging
+    int                                  prev_update_num = 0; // For print out the debugging messages
 #endif
 
     Voxel_mapping()

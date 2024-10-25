@@ -88,7 +88,7 @@ Common_tools::Timer g_cost_time_logger;
 
 Eigen::Matrix3d g_camera_K;
 
-std::string data_path_file = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_output/" );
+std::string data_path_file = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_PGO/" );
 
 int    appending_pts_frame = ( int ) 5e3;
 double threshold_scale = 1.0; // normal
