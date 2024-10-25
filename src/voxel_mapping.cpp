@@ -1916,6 +1916,7 @@ int Voxel_mapping::service_LiDAR_update()
                     graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), prior_noise));
                     pc_pose_pgo.emplace_back(curr_cloud_full, pose);
                     pose_odom.push_back(pose);
+                    pose_update.push_back(pose);
 
                     optimize_once_and_update();
                 }
@@ -2009,6 +2010,9 @@ int Voxel_mapping::service_LiDAR_update()
         } else {
             optimize_once_and_update();
         }
+
+        // 由于meshing用的是pgo优化之后的pose，因此，pose_update也应该存pgo
+        pose_update.push_back(pc_pose_pgo[frame_num].second);
         
         compare_get_gtsam_update_num(frame_num); // For Debugging
 #endif

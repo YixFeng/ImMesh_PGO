@@ -308,11 +308,16 @@ class Voxel_mapping
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr current_cloud_world = nullptr;
     pcl::PointCloud<pcl::PointXYZI>::Ptr key_frame_cloud = nullptr;
+
+    // pc_pose_pgo中一直存储着最新的pgo优化后的位姿结果
+    // pose_odom用于更新PGO和回环的因子，因为STD特征都是在odom的pose上提取的
+    // pose_update用于减少meshing的更新量，如果回环触发的过于频繁，用新的pgo的结果与上次更新后的poses比较，只更新变化超出阈值的
     std::vector<std::pair<PointCloudXYZI, Eigen::Affine3d>> pc_pose_pgo;
-    std::vector<Eigen::Affine3d>         pose_odom;
+    std::vector<Eigen::Affine3d>         pose_odom;           // save the odometry poses obtained from voxel-loc, used for building pgo
+    std::vector<Eigen::Affine3d>         pose_update;         // save the poses used for updating the mesh
+
     std::vector<std::pair<int, int>>     loop_container;
     bool                                 has_loop_flag = false;
-    int                                  prev_update_num = 0; // For print out the debugging messages
 #endif
 
     Voxel_mapping()

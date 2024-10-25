@@ -413,10 +413,12 @@ void Voxel_mapping::map_incremental_grow()
         if (has_loop_flag) {
             // 从index=1开始，由于index=0的prior帧并没有进入这个函数。并且这里不包含最后一帧，因为无论gtsam的更新量有没有超过阈值，最后一帧都需要加入meshing
             for (int i = 1; i <= pc_pose_pgo.size() - 2; i++) {
-                if (sqrt((pc_pose_pgo[i].second.matrix() - pose_odom[i].matrix()).block<3, 1>(0, 3).squaredNorm() / 3) > pgo_pose_update_thres) {
+                if (sqrt((pc_pose_pgo[i].second.matrix() - pose_update[i].matrix()).block<3, 1>(0, 3).squaredNorm() / 3) > pgo_pose_update_thres) {
                     Eigen::Affine3d temp_transform = pc_pose_pgo[i].second;
                     pcl::PointCloud<pcl::PointXYZI>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZI>());
                     transformLidar(temp_transform.linear(), temp_transform.translation(), pc_pose_pgo[i].first.makeShared(), temp_cloud);
+                    // ANCHOR: 注意！这里pose_update只跟踪用于meshing的位姿，并不一定与pc_pose_pgo完全一致，一些变化不超出阈值的位姿，仍保留pose_odom的值
+                    pose_update[i] = pc_pose_pgo[i].second;
 
                     g_mutex_data_package_lock.lock();
                     g_rec_mesh_data_package_list.emplace_back(temp_cloud, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), i - 1);
@@ -576,12 +578,10 @@ void Voxel_mapping::compare_get_gtsam_update_num(const int frame_id) {
 
     int num_of_update = 0;
     for (int i = 0; i < pc_pose_pgo.size(); i++) {
-        if (sqrt((pc_pose_pgo[i].second.matrix() - pose_odom[i].matrix()).block<3, 1>(0, 3).squaredNorm() / 3) > pgo_pose_update_thres)
+        if (sqrt((pc_pose_pgo[i].second.matrix() - pose_update[i].matrix()).block<3, 1>(0, 3).squaredNorm() / 3) > pgo_pose_update_thres)
             num_of_update++;
     }
-    if (num_of_update && (num_of_update - 1 != prev_update_num)) {
+    if (num_of_update)
         cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << " Thres: " << pgo_pose_update_thres << endl;
-    }
-    prev_update_num = num_of_update;
 }
 #endif
