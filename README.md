@@ -1,7 +1,10 @@
 # ImMesh_PGO: An Immediate LiDAR Localization and Meshing Framework with Loop Closure
 
-## TODO List
-- Once, I met `corrupted double-linked list` error, most likely due to multiple threads randomly accessing a container at the same time, however no mutex was used.
+## Comparison Result
+(Left) **ImMesh**, (Right) **ImMesh_PGO** running on [building_slower_motion_avia.bag](https://drive.usercontent.google.com/download?id=1I3ghnN5o5v4RHTkCgP-6U-5pGG7OMl0D&export=download&authuser=0&confirm=t&uuid=c7a61ebe-ee10-40c0-9bde-b71840a3db89&at=AN_67v3YtYGHHXmh46zbSSWpq-YY:1729412069977).
+<div align="center">
+<img src="paper/comparison.jpg" alt="img" width="100%" />
+</div>
 
 ## 1. Prerequisites
 ### 1.1 **ROS**
@@ -26,7 +29,7 @@ sudo apt-get install -y libcgal-dev libxkbcommon-x11-dev
 ### 1.4 **GTSAM**
 Follow this [GTSAM Get Started](https://gtsam.org/get_started/).
 
-## 2. Build ImMesh on ROS:
+## 2. Build ImMesh on ROS
 Clone this repository and catkin_make:
 ```
 cd ~/catkin_ws/src
@@ -34,6 +37,27 @@ git clone https://github.com/YixFeng/ImMesh_PGO.git
 cd ../
 catkin_make
 source ~/catkin_ws/devel/setup.bash
+```
+
+## 3. Run
+Use this command, you can run [building_slower_motion_avia.bag](https://drive.usercontent.google.com/download?id=1I3ghnN5o5v4RHTkCgP-6U-5pGG7OMl0D&export=download&authuser=0&confirm=t&uuid=c7a61ebe-ee10-40c0-9bde-b71840a3db89&at=AN_67v3YtYGHHXmh46zbSSWpq-YY:1729412069977).
+```
+roslaunch immesh_pgo mapping_avia.launch
+rosbag play building_slower_motion_avia.bag
+```
+Since I only incrementally updated the mesh after the loop-closure optimization, the old mesh features have not been removed and will be mixed with the new ones.
+
+If you want to have a map constructed from loop-closure-optimized poses, you can follow instructions below:
+
+1. Run ImMesh_PGO.
+```
+roslaunch immesh_pgo mapping_avia.launch
+```
+2. Click "Save PGO Cloud to file" in the UI and you will get a corrected pointcloud in your "~/ImMesh_PGO" directory.
+
+3. Build the mesh using the pointcloud. You need to change the path in the launch file.
+```
+roslaunch immesh_pgo mapping_pointcloud.launch
 ```
 
 ## Acknowledgement

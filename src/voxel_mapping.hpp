@@ -315,9 +315,11 @@ class Voxel_mapping
     std::vector<std::pair<PointCloudXYZI, Eigen::Affine3d>> pc_pose_pgo;
     std::vector<Eigen::Affine3d>         pose_odom;           // save the odometry poses obtained from voxel-loc, used for building pgo
     std::vector<Eigen::Affine3d>         pose_update;         // save the poses used for updating the mesh
+    std::vector<double>                  timestamp_vec;
 
     std::vector<std::pair<int, int>>     loop_container;
     bool                                 has_loop_flag = false;
+    int                                  consecutive_loop_begin = 0;
 #endif
 
     Voxel_mapping()
@@ -465,7 +467,8 @@ class Voxel_mapping
 
     void optimize_loop_and_update();
 
-    // For debugging
-    void compare_get_gtsam_update_num(const int frame_id);
+    void save_pgo_cloud_into_file(string pcd_file);
+
+    void save_pgo_poses_into_file(FILE *fp);
 #endif
 };

@@ -1,6 +1,6 @@
 <launch>
 
-	<param name="pc_name" type="string" value="YOUR_POINTCLOUD.pcd" />
+	<param name="pc_name" type="string" value="/home/yixfeng/ImMesh_PGO/pgo_cloud.pcd" />
 	<rosparam command="load" file="$(find immesh_pgo)/config/offline_pointcloud.yaml" />
 	<param name="meshing/distance_scale" type="double" value="1.0" /> 
 	<param name="gui_font_size" type="int" value="20" /> 

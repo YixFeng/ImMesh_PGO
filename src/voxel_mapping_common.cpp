@@ -69,6 +69,37 @@ void Voxel_mapping::kitti_log( FILE *fp )
     fflush( fp );
 }
 
+#ifdef USE_LOOP_PGO
+void Voxel_mapping::save_pgo_cloud_into_file(string pcd_file) {
+    pcl::PointCloud<pcl::PointXYZI>::Ptr pgo_world_cloud_full(new pcl::PointCloud<pcl::PointXYZI>());
+    for (int i = 0; i < pc_pose_pgo.size(); i++) {
+        Eigen::Affine3d temp_transform = pc_pose_pgo[i].second;
+        pcl::PointCloud<pcl::PointXYZI>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+        pcl::PointCloud<pcl::PointXYZI>::Ptr ds_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+
+        transformLidar(temp_transform.linear(), temp_transform.translation(), pc_pose_pgo[i].first.makeShared(), temp_cloud);
+        pcl::VoxelGrid<pcl::PointXYZI> ds_filter;
+        ds_filter.setInputCloud(temp_cloud);
+        ds_filter.setLeafSize(0.4, 0.4, 0.4);
+        ds_filter.filter(*ds_cloud);
+        *pgo_world_cloud_full += *ds_cloud;
+    }
+    pcl::io::savePCDFileBinary(pcd_file, *pgo_world_cloud_full);
+    cout << "=== Save PGO Cloud Finish !!! === " << endl;
+}
+
+void Voxel_mapping::save_pgo_poses_into_file(FILE *fp) {
+    for (int i = 0; i < pc_pose_pgo.size(); i++) {
+        Eigen::Affine3d pose = pc_pose_pgo[i].second;
+        Eigen::Vector3d trans = pose.translation();
+        Eigen::Quaterniond q(pose.linear());
+        fprintf(fp, "%lf %lf %lf %lf %lf %lf %lf %lf\n", timestamp_vec[i], trans[0], trans[1], trans[2], q.x(), q.y(), q.z(), q.w());
+    }
+    fflush(fp);
+    cout << "=== Save PGO Poses Finish !!! === " << endl;
+}
+#endif
+
 void Voxel_mapping::SigHandle( int sig )
 {
     m_flg_exit = true;
@@ -733,6 +764,7 @@ void Voxel_mapping::read_ros_parameters( ros::NodeHandle &nh )
     nh.param< double >("pgo/iter_eps", std_config.iter_eps, 0.001);
     
     nh.param< double >("pgo/pgo_pose_update_thres", pgo_pose_update_thres, 1e-4);
+    nh.param< int >("pgo/skip_near_loop", std_config.skip_near_loop, 5);
 
     std_manager->config = std_config;
 #endif

@@ -410,7 +410,8 @@ void Voxel_mapping::map_incremental_grow()
         g_vx_map_frame_cost_time = ( vx_map_cost_time - g_LiDAR_frame_start_time ) * 1000.0;
         // cout << "vx_map_cost_time = " <<  g_vx_map_frame_cost_time << " ms" << endl;
 #ifdef USE_LOOP_PGO
-        if (has_loop_flag) {
+        if (has_loop_flag && (loop_container.back().second - consecutive_loop_begin > std_manager->config.skip_near_loop)) {
+            int num_of_update = 0;
             // 从index=1开始，由于index=0的prior帧并没有进入这个函数。并且这里不包含最后一帧，因为无论gtsam的更新量有没有超过阈值，最后一帧都需要加入meshing
             for (int i = 1; i <= pc_pose_pgo.size() - 2; i++) {
                 if (sqrt((pc_pose_pgo[i].second.matrix() - pose_update[i].matrix()).block<3, 1>(0, 3).squaredNorm() / 3) > pgo_pose_update_thres) {
@@ -423,8 +424,12 @@ void Voxel_mapping::map_incremental_grow()
                     g_mutex_data_package_lock.lock();
                     g_rec_mesh_data_package_list.emplace_back(temp_cloud, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), i - 1);
                     g_mutex_data_package_lock.unlock();
+                    num_of_update++;
                 }
             }
+            cout << ANSI_COLOR_GREEN_BOLD << "[Mesh Update] Updated State: " << num_of_update << 
+                ", Match ID: " << loop_container.back().first << ", Curr ID: " << loop_container.back().second << ANSI_COLOR_RESET << endl;
+            consecutive_loop_begin = loop_container.back().second;
         }
         // 因为进入这个函数没有算prior那一帧，但是pose_vec里存有init priorFactor那一帧
         int pose_vec_index = g_frame_idx + 1;
@@ -510,7 +515,7 @@ bool Voxel_mapping::get_std_feature_and_matching(const int frame_id) {
     
     std_manager->insert(feature);
     if (result.valid) {
-        ROS_WARN("FIND MATCHED LOOP! Frame ID: %lu, Current ID: %lu, Loop ID: %lu, Match Score: %.4f, Time Cost: %lu ms", frame_id, feature.id, result.match_id, result.match_score, duration);
+        ROS_WARN("FIND MATCHED LOOP! Current ID: %lu, Loop ID: %lu, Match Score: %.4f, Time Cost: %lu ms", feature.id, result.match_id, result.match_score, duration);
         double score = std_manager->verifyGeoPlaneICP(feature.cloud, std_manager->cloud_vec[result.match_id], result.rotation, result.translation);
         has_loop = true;
         loop_container.emplace_back(result.match_id, feature.id);
@@ -571,17 +576,5 @@ void Voxel_mapping::optimize_loop_and_update() {
         gtsam::Pose3 est = current_estimates.at<gtsam::Pose3>(i);
         pc_pose_pgo[i].second = Eigen::Affine3d(est.matrix());
     }
-}
-
-void Voxel_mapping::compare_get_gtsam_update_num(const int frame_id) {
-    assert(pc_pose_pgo.size() == pose_odom.size());
-
-    int num_of_update = 0;
-    for (int i = 0; i < pc_pose_pgo.size(); i++) {
-        if (sqrt((pc_pose_pgo[i].second.matrix() - pose_update[i].matrix()).block<3, 1>(0, 3).squaredNorm() / 3) > pgo_pose_update_thres)
-            num_of_update++;
-    }
-    if (num_of_update)
-        cout << "[DEBUG] Frame ID: " << frame_id << " GTSAM Update Amount: " << num_of_update << " Thres: " << pgo_pose_update_thres << endl;
 }
 #endif

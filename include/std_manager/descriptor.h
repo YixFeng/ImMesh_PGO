@@ -83,6 +83,8 @@ namespace std_desc
 
         double iter_eps = 1e-3;
         size_t max_iter = 10;
+
+        int skip_near_loop = 5;
     };
 
     struct VoxelNode

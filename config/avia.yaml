@@ -113,4 +113,5 @@ pgo:
     iter_eps: 0.001
     max_iter: 10
 
-    pgo_pose_update_thres: 0.01
+    pgo_pose_update_thres: 0.05
+    skip_near_loop: 10
