@@ -88,7 +88,7 @@ Common_tools::Timer g_cost_time_logger;
 
 Eigen::Matrix3d g_camera_K;
 
-std::string data_path_file = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_output/" );
+std::string data_path_file = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_PGO/" );
 
 int    appending_pts_frame = ( int ) 5e3;
 double threshold_scale = 1.0; // normal
@@ -400,6 +400,23 @@ int main( int argc, char **argv )
                 save_to_ply_file( std::string( data_path_file ).append( "/rec_mesh.ply" ), g_ply_smooth_factor, g_ply_smooth_k );
                 g_flag_pause = temp_flag;
             }
+
+#ifdef USE_LOOP_PGO
+            if (ImGui::Button(" Save PGO Cloud to file "))
+            {
+                Common_tools::create_dir( data_path_file );
+                voxel_mapping.save_pgo_cloud_into_file(std::string(data_path_file).append("/pgo_cloud.pcd"));
+            }
+
+            if (ImGui::Button(" Save PGO Poses to file "))
+            {
+                FILE* fp_pgo;
+                Common_tools::create_dir( data_path_file );
+                string fp_pgo_dst = std::string( data_path_file ).append( "/pgo_poses.txt" );
+                fp_pgo = fopen(fp_pgo_dst.c_str(), "w");
+                voxel_mapping.save_pgo_poses_into_file(fp_pgo);
+            }
+#endif
 
             if ( ImGui::Button( "Load Camera view" ) )
             {

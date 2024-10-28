@@ -1,10 +1,10 @@
 <launch>
 	<arg name="rviz" default="false" />
-	<rosparam command="load" file="$(find immesh_pgo)/config/nclt.yaml" />
+	<rosparam command="load" file="$(find immesh_pgo)/config/horizon.yaml" />
 	<param name="meshing/distance_scale" type="double" value="1.0" /> 
 	<param name="gui_font_size" type="int" value="20" /> 
 	
-	<node pkg="immesh_pgo" type="ImMesh_mapping" name="laserMapping" output="screen">
+	<node pkg="immesh_pgo" type="ImMesh_mapping" name="ImMesh_mapping" output="screen" launch-prefix=""> 
 	</node>
 	
 	<group if="$(arg rviz)">

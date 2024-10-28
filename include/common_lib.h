@@ -29,6 +29,7 @@ using namespace Eigen;
 // #define USE_ikdforest
 //#define USE_IKFOM
 // #define USE_FOV_Checker
+#define USE_LOOP_PGO
 
 #define print_line std::cout << __FILE__ << ", " << __LINE__ << std::endl;
 #define PI_M ( 3.14159265358 )

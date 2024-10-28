@@ -1,11 +1,11 @@
 <launch>
 
-	<rosparam command="load" file="$(find ImMesh)/config/velodyne.yaml" />
+	<rosparam command="load" file="$(find immesh_pgo)/config/velodyne.yaml" />
 	<param name="meshing/distance_scale" type="double" value="1.5" /> 
 	<arg name="rviz" default="false" />
 	<param name="gui_font_size" type="int" value="20" /> 
 	
-	<node pkg="ImMesh" type="ImMesh_mapping" name="laserMapping" output="screen">
+	<node pkg="immesh_pgo" type="ImMesh_mapping" name="laserMapping" output="screen">
 	</node>
 	
 	<group if="$(arg rviz)">

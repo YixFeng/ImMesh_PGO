@@ -16,8 +16,8 @@ img_point_cov : 1000 #100
 laser_point_cov : 0.001 #0.001
 
 common:
-    lid_topic:  "/livox/lidar"
-    imu_topic:  "/livox/imu"
+    lid_topic:  "/livox/horizon"
+    imu_topic:  "/livox/horizon/imu"
 
 preprocess:
     lidar_type: 1               # Livox Avia LiDAR
@@ -28,16 +28,20 @@ preprocess:
 mapping:
     imu_en: true
     imu_int_frame: 30
-    acc_cov: 0.5
-    gyr_cov: 0.3
-    b_acc_cov: 0.01
-    b_gyr_cov: 0.01
+    # acc_cov: 0.5
+    # gyr_cov: 0.3
+    # b_acc_cov: 0.01
+    # b_gyr_cov: 0.01
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
     fov_degree:    180
     # extrinsic_T: [ 0.0, 0.0, -0.0 ]
     # extrinsic_R: [ 1, 0, 0,
     #                0, 1, 0,
     #                0, 0, 1]
-    extrinsic_T: [ 0.04165, 0.02326, -0.0284 ]
+    extrinsic_T: [ 0.05512, 0.02226, -0.0297 ]
     extrinsic_R: [ 1, 0, 0,
                    0, 1, 0,
                    0, 0, 1]
@@ -107,11 +111,11 @@ pgo:
     vertex_diff_threshold: 0.5
     rough_dis_threshold: 0.01
     geo_verify_dis_thresh: 0.5
-    icp_thresh: 0.4
+    icp_thresh: 0.6
     verify_dis_thresh: 3.0
 
     iter_eps: 0.001
     max_iter: 10
 
-    pgo_pose_update_thres: 0.05
+    pgo_pose_update_thres: 10
     skip_near_loop: 10

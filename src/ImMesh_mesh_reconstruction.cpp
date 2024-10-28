@@ -348,9 +348,9 @@ void open_log_file()
 {
     if ( g_fp_cost_time == nullptr || g_fp_lio_state == nullptr )
     {
-        Common_tools::create_dir( std::string( Common_tools::get_home_folder() ).append( "/ImMesh_output" ).c_str() );
-        std::string cost_time_log_name = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_output/mesh_cost_time.log" );
-        std::string lio_state_log_name = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_output/lio_state.log" );
+        Common_tools::create_dir( std::string( Common_tools::get_home_folder() ).append( "/ImMesh_PGO" ).c_str() );
+        std::string cost_time_log_name = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_PGO/mesh_cost_time.log" );
+        std::string lio_state_log_name = std::string( Common_tools::get_home_folder() ).append( "/ImMesh_PGO/lio_state.log" );
         // cout << ANSI_COLOR_BLUE_BOLD ;
         // cout << "Record cost time to log file:" << cost_time_log_name << endl;
         // cout << "Record LIO state to log file:" << cost_time_log_name << endl;
@@ -409,12 +409,44 @@ void Voxel_mapping::map_incremental_grow()
         double vx_map_cost_time = omp_get_wtime();
         g_vx_map_frame_cost_time = ( vx_map_cost_time - g_LiDAR_frame_start_time ) * 1000.0;
         // cout << "vx_map_cost_time = " <<  g_vx_map_frame_cost_time << " ms" << endl;
+#ifdef USE_LOOP_PGO
+        if (has_loop_flag && (loop_container.back().second - consecutive_loop_begin > std_manager->config.skip_near_loop)) {
+            int num_of_update = 0;
+            // 从index=1开始，由于index=0的prior帧并没有进入这个函数。并且这里不包含最后一帧，因为无论gtsam的更新量有没有超过阈值，最后一帧都需要加入meshing
+            for (int i = 1; i <= pc_pose_pgo.size() - 2; i++) {
+                if (sqrt((pc_pose_pgo[i].second.matrix() - pose_update[i].matrix()).block<3, 1>(0, 3).squaredNorm() / 3) > pgo_pose_update_thres) {
+                    Eigen::Affine3d temp_transform = pc_pose_pgo[i].second;
+                    pcl::PointCloud<pcl::PointXYZI>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+                    transformLidar(temp_transform.linear(), temp_transform.translation(), pc_pose_pgo[i].first.makeShared(), temp_cloud);
+                    // ANCHOR: 注意！这里pose_update只跟踪用于meshing的位姿，并不一定与pc_pose_pgo完全一致，一些变化不超出阈值的位姿，仍保留pose_odom的值
+                    pose_update[i] = pc_pose_pgo[i].second;
 
+                    g_mutex_data_package_lock.lock();
+                    g_rec_mesh_data_package_list.emplace_back(temp_cloud, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), i - 1);
+                    g_mutex_data_package_lock.unlock();
+                    num_of_update++;
+                }
+            }
+            cout << ANSI_COLOR_GREEN_BOLD << "[Mesh Update] Updated State: " << num_of_update << 
+                ", Match ID: " << loop_container.back().first << ", Curr ID: " << loop_container.back().second << ANSI_COLOR_RESET << endl;
+            consecutive_loop_begin = loop_container.back().second;
+        }
+        // 因为进入这个函数没有算prior那一帧，但是pose_vec里存有init priorFactor那一帧
+        int pose_vec_index = g_frame_idx + 1;
+        Eigen::Affine3d temp_transform = pc_pose_pgo[pose_vec_index].second;
+        transformLidar(temp_transform.linear(), temp_transform.translation(), m_feats_undistort, world_lidar_full);
+
+        g_mutex_data_package_lock.lock();
+        g_rec_mesh_data_package_list.emplace_back(world_lidar_full, Eigen::Quaterniond(temp_transform.linear()), temp_transform.translation(), g_frame_idx);
+        g_mutex_data_package_lock.unlock();
+#else
         transformLidar( state.rot_end, state.pos_end, m_feats_undistort, world_lidar_full );
          
         g_mutex_data_package_lock.lock();
+        // ANCHOR: meshing用data package
         g_rec_mesh_data_package_list.emplace_back( world_lidar_full, Eigen::Quaterniond( state.rot_end ), state.pos_end, g_frame_idx );
         g_mutex_data_package_lock.unlock();
+#endif
         open_log_file();
         if ( g_fp_lio_state != nullptr )
         {
@@ -442,3 +474,107 @@ void Voxel_mapping::map_incremental_grow()
 #endif
     }
 }
+
+#ifdef USE_LOOP_PGO
+void Voxel_mapping::initSAM() {
+    prior_noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-2, 1e-2, M_PI * M_PI, 1e8, 1e8, 1e8).finished());
+    odometry_noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished());
+    gtsam::Vector robustNoiseVector(6);
+    robustNoiseVector << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1;
+    robust_loop_noise = gtsam::noiseModel::Robust::Create(
+        gtsam::noiseModel::mEstimator::Cauchy::Create(1), gtsam::noiseModel::Diagonal::Variances(robustNoiseVector));
+    
+    gtsam::ISAM2Params parameters;
+    parameters.relinearizeSkip = 1;
+    parameters.relinearizeThreshold = 0.01;
+    isam = std::make_shared<gtsam::ISAM2>(parameters);
+}
+
+void Voxel_mapping::get_cloud_for_std_matcher(pcl::PointCloud<pcl::PointXYZI>::Ptr &in) {
+    in->clear();
+
+    transformLidar(state.rot_end, state.pos_end, m_feats_undistort, in);
+
+    std_desc::voxelFilter(in, std_manager->config.ds_size);
+}
+
+bool Voxel_mapping::get_std_feature_and_matching(const int frame_id) {
+    bool has_loop = false;
+
+    std_desc::STDFeature feature = std_manager->extract(key_frame_cloud);
+    // cout << "ID: " << frame_id << " Feature Size: " << feature.descs.size() << " Cloud Size: " << key_frame_cloud->size() << endl;
+    std_desc::LoopResult result;
+
+    int64_t duration;
+    if (frame_id > std_config.skip_near_num) {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        result = std_manager->searchLoop(feature);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+    }
+    
+    std_manager->insert(feature);
+    if (result.valid) {
+        ROS_WARN("FIND MATCHED LOOP! Current ID: %lu, Loop ID: %lu, Match Score: %.4f, Time Cost: %lu ms", feature.id, result.match_id, result.match_score, duration);
+        double score = std_manager->verifyGeoPlaneICP(feature.cloud, std_manager->cloud_vec[result.match_id], result.rotation, result.translation);
+        has_loop = true;
+        loop_container.emplace_back(result.match_id, feature.id);
+        for (size_t j = 1; j <= std_manager->config.sub_frame_num; j++) {
+            // 当前关键帧，是由过去10帧加起来的
+            int src_frame = frame_id + j - std_manager->config.sub_frame_num;
+            // 历史配对帧，由于feature id即match_id，是由STD内部计数，提取feature每10帧一个关键帧提取一次，因此match_id的计数总是由这个10倍的关系
+            int tar_frame = result.match_id * std_manager->config.sub_frame_num + j;
+
+            Eigen::Affine3d delta_pose = Eigen::Affine3d::Identity();
+            delta_pose.translation() = result.translation;
+            delta_pose.linear() = result.rotation;
+
+            Eigen::Affine3d refined_src = delta_pose * pose_odom[src_frame];
+            Eigen::Affine3d tar_pose = pose_odom[tar_frame];
+
+            graph.add(gtsam::BetweenFactor<gtsam::Pose3>(tar_frame, src_frame,
+                                                        gtsam::Pose3(tar_pose.matrix()).between(gtsam::Pose3(refined_src.matrix())),
+                                                        robust_loop_noise));
+        }
+    }
+    key_frame_cloud->clear();
+
+    return has_loop;
+}
+
+void Voxel_mapping::optimize_once_and_update() {
+    isam->update(graph, initial);
+    isam->update();
+
+    graph.resize(0);
+    initial.clear();
+
+    gtsam::Values current_estimates = isam->calculateEstimate();
+    assert(current_estimates.size() == pc_pose_pgo.size());
+
+    for (int i = 0; i < current_estimates.size(); i++) {
+        gtsam::Pose3 est = current_estimates.at<gtsam::Pose3>(i);
+        pc_pose_pgo[i].second = Eigen::Affine3d(est.matrix());
+    }
+}
+
+void Voxel_mapping::optimize_loop_and_update() {
+    isam->update(graph, initial);
+    isam->update();
+    isam->update();
+    isam->update();
+    isam->update();
+    isam->update();
+
+    graph.resize(0);
+    initial.clear();
+
+    gtsam::Values current_estimates = isam->calculateEstimate();
+    assert(current_estimates.size() == pc_pose_pgo.size());
+
+    for (int i = 0; i < current_estimates.size(); i++) {
+        gtsam::Pose3 est = current_estimates.at<gtsam::Pose3>(i);
+        pc_pose_pgo[i].second = Eigen::Affine3d(est.matrix());
+    }
+}
+#endif

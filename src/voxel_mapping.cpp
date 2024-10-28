@@ -1899,6 +1899,31 @@ int Voxel_mapping::service_LiDAR_update()
                 if ( m_is_pub_plane_map )
                     pubPlaneMap( m_feat_map, voxel_pub, state.pos_end );
 
+#ifdef USE_LOOP_PGO
+                PointCloudXYZI curr_cloud_full;
+                pcl::copyPointCloud(*m_feats_undistort, curr_cloud_full);
+
+                get_cloud_for_std_matcher(current_cloud_world);
+                *key_frame_cloud += *current_cloud_world;
+
+                if (m_init_map) {
+                    ROS_INFO("Initialization Frame Index: %d", frame_num);
+                    Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+                    pose.translation() = state.pos_end;
+                    pose.linear() = state.rot_end;
+
+                    initial.insert(frame_num, gtsam::Pose3(pose.matrix()));
+                    graph.add(gtsam::PriorFactor<gtsam::Pose3>(frame_num, gtsam::Pose3(pose.matrix()), prior_noise));
+
+                    pc_pose_pgo.emplace_back(curr_cloud_full, pose);
+                    pose_odom.push_back(pose);
+                    pose_update.push_back(pose);
+                    timestamp_vec.push_back(m_Lidar_Measures.lidar_beg_time);
+
+                    optimize_once_and_update();
+                }
+#endif
+
                 frame_num++;
                 continue;
             };
@@ -1959,6 +1984,39 @@ int Voxel_mapping::service_LiDAR_update()
             lio_state_estimation( state_propagat );
         }
 #endif
+#ifdef USE_LOOP_PGO
+        PointCloudXYZI curr_cloud_full;
+        pcl::copyPointCloud(*m_feats_undistort, curr_cloud_full);
+
+        get_cloud_for_std_matcher(current_cloud_world);
+        *key_frame_cloud += *current_cloud_world;
+
+        Eigen::Affine3d pose_end = Eigen::Affine3d::Identity();
+        pose_end.translation() = state.pos_end;
+        pose_end.linear() = state.rot_end;
+
+        initial.insert(frame_num, gtsam::Pose3(pose_end.matrix()));
+        auto prev_pose = gtsam::Pose3(pose_odom[frame_num - 1].matrix());
+        auto curr_pose = gtsam::Pose3(pose_end.matrix());
+        graph.add(gtsam::BetweenFactor<gtsam::Pose3>(frame_num - 1, frame_num, 
+                                                    prev_pose.between(curr_pose), odometry_noise));
+        pc_pose_pgo.emplace_back(curr_cloud_full, pose_end);
+        pose_odom.push_back(pose_end);
+        
+        if (frame_num % std_manager->config.sub_frame_num == 0 && frame_num != 0) {
+            has_loop_flag = get_std_feature_and_matching(frame_num);
+        }
+
+        if (has_loop_flag) {
+            optimize_loop_and_update();
+        } else {
+            optimize_once_and_update();
+        }
+
+        // 由于meshing用的是pgo优化之后的pose，因此，pose_update也应该存pgo
+        pose_update.push_back(pc_pose_pgo[frame_num].second);
+        timestamp_vec.push_back(m_Lidar_Measures.lidar_beg_time);
+#endif
         double t_update_end = omp_get_wtime();
         /******* Publish odometry *******/
         m_euler_cur = RotMtoEuler( state.rot_end );
@@ -2002,6 +2060,9 @@ int Voxel_mapping::service_LiDAR_update()
         // #endif
 
         /*** Debug variables ***/
+#ifdef USE_LOOP_PGO
+        has_loop_flag = false;
+#endif
         frame_num++;
         aver_time_consu = aver_time_consu * ( frame_num - 1 ) / frame_num + ( t5 - t0 ) / frame_num;
         aver_time_icp = aver_time_icp * ( frame_num - 1 ) / frame_num + ( t_update_end - t_update_start ) / frame_num;

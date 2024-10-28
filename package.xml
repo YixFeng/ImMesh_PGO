@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <package>
-  <name>ImMesh</name>
+  <name>immesh_pgo</name>
   <version>0.0.0</version>
 
   <description>
-]   ImMesh: An Immediate LiDAR Localization and Meshing Framework
+]   ImMesh_PGO: An Immediate LiDAR Localization and Meshing Framework with Loop Closure
   </description>
 
   <maintainer email="dev@livoxtech.com">claydergc</maintainer>

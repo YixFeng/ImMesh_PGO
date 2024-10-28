@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ImMesh)
+project(immesh_pgo)
 
 SET(CMAKE_BUILD_TYPE "Release")
 
 ADD_COMPILE_OPTIONS(-std=c++14 )
 
 add_definitions(-DROOT_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
+
+add_compile_definitions(SOPHUS_USE_BASIC_LOGGING)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions" )
 set(CMAKE_CXX_STANDARD 14)
@@ -57,6 +59,7 @@ find_package(Eigen3 REQUIRED)
 find_package(PCL 1.6 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(CGAL REQUIRED)
+find_package(GTSAM REQUIRED)
 FIND_PACKAGE(Boost REQUIRED COMPONENTS filesystem iostreams program_options system serialization)
 set(Sophus_LIBRARIES libSophus.so)
 
@@ -73,6 +76,7 @@ include_directories(
   
   # ===== Meshing =====
   ./include/ikd-Tree/
+  ./include/std_manager/
   ./src/meshing/
   ./src/meshing//r3live/
   ./src/meshing//kd_tree_dev/
@@ -111,6 +115,7 @@ add_executable(ImMesh_mapping
   src/ImMesh_node.cpp
   src/ImMesh_mesh_reconstruction.cpp
   include/ikd-Tree/ikd_Tree.cpp
+  include/std_manager/descriptor.cpp
   src/voxel_mapping.cpp
   src/voxel_mapping_common.cpp
   src/voxel_loc.cpp
@@ -145,6 +150,7 @@ target_link_libraries(ImMesh_mapping
                       ${Boost_FILESYSTEM_LIBRARY}
                       ${Boost_SERIALIZATION_LIBRARY} # serialization
                       ${CERES_LIBRARIES}
+                      gtsam
                       pcl_common
                       pcl_io
                       pcl_filters
