@@ -1,9 +1,9 @@
 # ImMesh_PGO: An Immediate LiDAR Localization and Meshing Framework with Loop Closure
 
 ## Comparison Result
-(Left) **ImMesh**, (Right) **ImMesh_PGO** running on [building_slower_motion_avia.bag](https://drive.usercontent.google.com/download?id=1I3ghnN5o5v4RHTkCgP-6U-5pGG7OMl0D&export=download&authuser=0&confirm=t&uuid=c7a61ebe-ee10-40c0-9bde-b71840a3db89&at=AN_67v3YtYGHHXmh46zbSSWpq-YY:1729412069977).
+(Left) **ImMesh**, (Right) **ImMesh_PGO** running on [unsw_lowercampus_20240916.bag](https://drive.google.com/file/d/1MKNC0-r70R1s6TmWuQgkmCrFHw4ZtRb8/view?usp=sharing).
 <div align="center">
-<img src="paper/comparison.jpg" alt="img" width="100%" />
+<img src="supply/Consistent_mapping_comparison.png" alt="img" width="100%" />
 </div>
 
 ## 1. Prerequisites
