@@ -189,8 +189,8 @@ namespace std_desc
     public:
         Config config;
         static uint64_t frame_count;
-        std::unordered_map<VoxelKey, VoxelNode, VoxelKey::Hasher> temp_voxels;
-        std::unordered_map<VoxelKey, std::vector<STDDescriptor>, VoxelKey::Hasher> data_base;
+        std::unordered_map<VoxelKey, VoxelNode, VoxelKey::Hasher> temp_voxels; // 用做寻找当前坐标在哪个Voxel里
+        std::unordered_map<VoxelKey, std::vector<STDDescriptor>, VoxelKey::Hasher> data_base; // 用做寻找当前Voxel包含在哪些描述子中，用于retrieval
         std::vector<pcl::PointCloud<pcl::PointXYZINormal>::Ptr> cloud_vec;
     };
 }

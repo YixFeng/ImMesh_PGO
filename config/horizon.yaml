@@ -117,5 +117,5 @@ pgo:
     iter_eps: 0.001
     max_iter: 10
 
-    pgo_pose_update_thres: 10
-    skip_near_loop: 10
+    pgo_pose_update_thres: 30
+    skip_near_loop: 10 # consecutive 10 loops, only update mesh once

@@ -196,6 +196,7 @@ namespace std_desc
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr ret(new pcl::PointCloud<pcl::PointXYZINormal>);
         Eigen::Vector3d x_axis(1, 1, 0);
 
+        // 满足norm和x_axis点积为0
         double A = norm(0), B = norm(1), C = norm(2);
         if (C != 0)
             x_axis[2] = -(A + B) / C;
@@ -338,14 +339,14 @@ namespace std_desc
                 continue;
 
             VoxelKey ck = iter->first;
-            VoxelNode *c_node = &iter->second;
+            VoxelNode *c_node = &iter->second; // 这里c_node一定不是平面
             int connect_index = -1;
             for (int i = 0; i < 6; i++)
             {
                 if (!c_node->connect[i])
                     continue;
                 connect_index = i;
-                VoxelNode *n_node = c_node->connect_nodes[connect_index];
+                VoxelNode *n_node = c_node->connect_nodes[connect_index]; // 这里n_node是个平面，可以看connection里对平面voxel周围非平面voxel那块
                 bool valid_plane = false;
                 for (int j = 0; j < 6; j++)
                     if (n_node->connect_check[j])
