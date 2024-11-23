@@ -1,9 +1,9 @@
 # ImMesh_PGO: An Immediate LiDAR Localization and Meshing Framework with Loop Closure
 
-## Comparison Result
-(Left) **ImMesh**, (Right) **ImMesh_PGO** running on [building_slower_motion_avia.bag](https://drive.usercontent.google.com/download?id=1I3ghnN5o5v4RHTkCgP-6U-5pGG7OMl0D&export=download&authuser=0&confirm=t&uuid=c7a61ebe-ee10-40c0-9bde-b71840a3db89&at=AN_67v3YtYGHHXmh46zbSSWpq-YY:1729412069977).
+## Comparison of Consistent Mapping
+(Left) Photo of the Scene, (Middle) **ImMesh**, (Right) **ImMesh_PGO** running on [unsw_lowercampus_20240916.bag](https://drive.google.com/file/d/1MKNC0-r70R1s6TmWuQgkmCrFHw4ZtRb8/view?usp=sharing).
 <div align="center">
-<img src="paper/comparison.jpg" alt="img" width="100%" />
+<img src="supply/Consistent_mapping_comparison.png" alt="img" width="100%" />
 </div>
 
 ## 1. Prerequisites
@@ -40,10 +40,10 @@ source ~/catkin_ws/devel/setup.bash
 ```
 
 ## 3. Run
-Use this command, you can run [building_slower_motion_avia.bag](https://drive.usercontent.google.com/download?id=1I3ghnN5o5v4RHTkCgP-6U-5pGG7OMl0D&export=download&authuser=0&confirm=t&uuid=c7a61ebe-ee10-40c0-9bde-b71840a3db89&at=AN_67v3YtYGHHXmh46zbSSWpq-YY:1729412069977).
+Use this command, you can run [unsw_lowercampus_20240916.bag](https://drive.google.com/file/d/1MKNC0-r70R1s6TmWuQgkmCrFHw4ZtRb8/view?usp=sharing).
 ```
-roslaunch immesh_pgo mapping_avia.launch
-rosbag play building_slower_motion_avia.bag
+roslaunch immesh_pgo mapping_horizon.launch
+rosbag play unsw_lowercampus_20240916.bag
 ```
 Since I only incrementally updated the mesh after the loop-closure optimization, the old mesh features have not been removed and will be mixed with the new ones.
 
@@ -51,9 +51,9 @@ If you want to have a map constructed from loop-closure-optimized poses, you can
 
 1. Run ImMesh_PGO.
 ```
-roslaunch immesh_pgo mapping_avia.launch
+roslaunch immesh_pgo mapping_horizon.launch
 ```
-2. Click "Save PGO Cloud to file" in the UI and you will get a corrected pointcloud in your "~/ImMesh_PGO" directory.
+2. Click "Save PGO Cloud to file" in the UI and you will get a corrected pointcloud in your `~/ImMesh_PGO` directory.
 
 3. Build the mesh using the pointcloud. You need to change the path in the launch file.
 ```
